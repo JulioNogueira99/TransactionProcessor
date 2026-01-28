@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="9.0.5" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\TransactionProcessor.Application\TransactionProcessor.Application.csproj" />
+    <ProjectReference Include="..\TransactionProcessor.Infrastructure\TransactionProcessor.Infrastructure.csproj" />
+  </ItemGroup>
+
+</Project>
