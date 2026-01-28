@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace TransactionProcessor.Domain.Interfaces
+namespace TransactionProcessor.Application.Interfaces
 {
     public interface IUnitOfWork
     {

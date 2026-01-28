@@ -1,6 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using TransactionProcessor.Application.Interfaces;
 using TransactionProcessor.Domain.Entities;
-using TransactionProcessor.Domain.Interfaces;
 using TransactionProcessor.Infrastructure.Context;
 
 namespace TransactionProcessor.Infrastructure.Repositories

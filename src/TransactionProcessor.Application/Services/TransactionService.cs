@@ -10,7 +10,6 @@ using TransactionProcessor.Application.Interfaces;
 using TransactionProcessor.Domain.Entities;
 using TransactionProcessor.Domain.Enums;
 using TransactionProcessor.Domain.Exceptions;
-using TransactionProcessor.Domain.Interfaces;
 
 namespace TransactionProcessor.Application.Services;
 

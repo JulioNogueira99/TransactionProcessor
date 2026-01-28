@@ -1,6 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using TransactionProcessor.Domain.Entities;
-using TransactionProcessor.Domain.Interfaces;
+using TransactionProcessor.Application.Interfaces;
 using TransactionProcessor.Infrastructure.Outbox;
 
 namespace TransactionProcessor.Infrastructure.Context

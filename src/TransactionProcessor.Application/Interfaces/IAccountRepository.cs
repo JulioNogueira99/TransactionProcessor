@@ -5,7 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 using TransactionProcessor.Domain.Entities;
 
-namespace TransactionProcessor.Domain.Interfaces
+namespace TransactionProcessor.Application.Interfaces
 {
     public interface IAccountRepository
     {
