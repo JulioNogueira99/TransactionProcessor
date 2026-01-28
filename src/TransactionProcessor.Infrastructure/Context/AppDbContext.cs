@@ -1,6 +1,7 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using TransactionProcessor.Domain.Entities;
 using TransactionProcessor.Domain.Interfaces;
+using TransactionProcessor.Infrastructure.Outbox;
 
 namespace TransactionProcessor.Infrastructure.Context
 {
@@ -12,6 +13,7 @@ namespace TransactionProcessor.Infrastructure.Context
 
         public DbSet<Account> Accounts { get; set; }
         public DbSet<Transaction> Transactions { get; set; }
+        public DbSet<OutboxMessage> OutboxMessages { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
