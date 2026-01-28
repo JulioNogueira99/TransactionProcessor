@@ -21,8 +21,9 @@ namespace TransactionProcessor.Infrastructure.Context
         }
 
         public async Task CommitAsync(CancellationToken cancellationToken)
-        {
-            await SaveChangesAsync(cancellationToken);
-        }
+            => await SaveChangesAsync(cancellationToken);
+
+        public void ClearTracking()
+            => ChangeTracker.Clear();
     }
 }

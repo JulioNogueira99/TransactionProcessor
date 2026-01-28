@@ -9,5 +9,6 @@ namespace TransactionProcessor.Domain.Interfaces
     public interface IUnitOfWork
     {
         Task CommitAsync(CancellationToken cancellationToken);
+        void ClearTracking();
     }
 }

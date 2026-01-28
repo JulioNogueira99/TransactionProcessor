@@ -1,11 +1,6 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using TransactionProcessor.Domain.Exceptions;
+﻿using TransactionProcessor.Domain.Exceptions;
 
-namespace TransactionProcessor.Domain.Entitities
+namespace TransactionProcessor.Domain.Entities
 {
     public class Account
     {
@@ -13,9 +8,9 @@ namespace TransactionProcessor.Domain.Entitities
         public decimal Balance { get; private set; }
         public decimal ReservedBalance { get; private set; }
         public decimal CreditLimit { get; private set; }
-        public uint Version { get; private set; }
-
-        public decimal AvailableBalance => (Balance + CreditLimit) - ReservedBalance;
+        public byte[] RowVersion { get; private set; } = Array.Empty<byte>();
+        public decimal AvailableBalance => Balance - ReservedBalance;
+        public decimal SpendingPower => AvailableBalance + CreditLimit;
 
         protected Account() { }
 
@@ -38,10 +33,8 @@ namespace TransactionProcessor.Domain.Entitities
         {
             if (amount <= 0) throw new DomainException("Debit amount must be positive.");
 
-            if (AvailableBalance < amount)
-            {
-                throw new DomainException($"Insufficient funds. Available: {AvailableBalance}, Required: {amount}");
-            }
+            if (SpendingPower < amount)
+                throw new DomainException($"Insufficient funds. Available: {SpendingPower}, Required: {amount}");
 
             Balance -= amount;
         }
@@ -51,9 +44,7 @@ namespace TransactionProcessor.Domain.Entitities
             if (amount <= 0) throw new DomainException("Reserve amount must be positive.");
 
             if (AvailableBalance < amount)
-            {
                 throw new DomainException("Insufficient funds for reservation.");
-            }
 
             ReservedBalance += amount;
         }

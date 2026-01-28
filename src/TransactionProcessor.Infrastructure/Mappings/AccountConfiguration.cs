@@ -17,7 +17,6 @@ namespace TransactionProcessor.Infrastructure.Mappings
 
             builder.HasKey(x => x.Id);
 
-            // Alta precisão para dinheiro (18 dígitos, 2 ou 4 decimais)
             builder.Property(x => x.Balance)
                 .HasPrecision(18, 2)
                 .IsRequired();
@@ -30,9 +29,9 @@ namespace TransactionProcessor.Infrastructure.Mappings
                 .HasPrecision(18, 2)
                 .IsRequired();
 
-            builder.Property(x => x.Version)
-                .IsConcurrencyToken()
-                .IsRequired();
+            builder.Property(x => x.RowVersion)
+                .IsRowVersion()
+                .IsConcurrencyToken();
         }
     }
 }

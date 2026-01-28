@@ -19,11 +19,12 @@ namespace TransactionProcessor.Infrastructure.Repositories
             await _context.Transactions.AddAsync(transaction, cancellationToken);
         }
 
-        public async Task<Transaction?> GetByReferenceIdAsync(string referenceId, CancellationToken cancellationToken)
+        public async Task<Transaction?> GetByReferenceIdAsync(string referenceId, CancellationToken ct)
         {
             return await _context.Transactions
                 .AsNoTracking()
-                .FirstOrDefaultAsync(x => x.ReferenceId == referenceId, cancellationToken);
+                .Include(x => x.Account)
+                .FirstOrDefaultAsync(x => x.ReferenceId == referenceId, ct);
         }
     }
 }

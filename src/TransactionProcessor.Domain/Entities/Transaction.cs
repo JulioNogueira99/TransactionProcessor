@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 using TransactionProcessor.Domain.Enums;
 using TransactionProcessor.Domain.Exceptions;
 
-namespace TransactionProcessor.Domain.Entitities
+namespace TransactionProcessor.Domain.Entities
 {
     public class Transaction
     {
