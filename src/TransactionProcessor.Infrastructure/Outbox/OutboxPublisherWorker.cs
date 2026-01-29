@@ -47,7 +47,8 @@ public sealed class OutboxPublisherWorker : BackgroundService
         {
             try
             {
-                await publisher.PublishAsync(msg.Type, msg.Payload, ct);
+                await OutboxPublishPolicies.PublishPolicy.ExecuteAsync(ct2 =>
+                    publisher.PublishAsync(msg.Type, msg.Payload, ct2), ct);
 
                 await outbox.MarkProcessedAsync(msg.Id, DateTimeOffset.UtcNow, ct);
                 await uow.CommitAsync(ct);
