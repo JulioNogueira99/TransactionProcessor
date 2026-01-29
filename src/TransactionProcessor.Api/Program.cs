@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using System.Reflection;
+using TransactionProcessor.Api.Health;
 using TransactionProcessor.Application.Interfaces;
 using TransactionProcessor.Application.Services;
 using TransactionProcessor.Infrastructure.Context;
@@ -21,7 +22,9 @@ builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlServer(connectionString));
 
 builder.Services.AddHealthChecks()
-    .AddDbContextCheck<AppDbContext>("db");
+    .AddDbContextCheck<AppDbContext>("db")
+    .AddCheck<OutboxCircuitBreakerHealthCheck>("outbox_circuit");
+
 
 builder.Services.AddScoped<IUnitOfWork>(sp => sp.GetRequiredService<AppDbContext>());
 
