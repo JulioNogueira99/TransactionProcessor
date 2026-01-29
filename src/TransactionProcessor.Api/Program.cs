@@ -20,6 +20,9 @@ if (string.IsNullOrWhiteSpace(connectionString))
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlServer(connectionString));
 
+builder.Services.AddHealthChecks()
+    .AddDbContextCheck<AppDbContext>("db");
+
 builder.Services.AddScoped<IUnitOfWork>(sp => sp.GetRequiredService<AppDbContext>());
 
 builder.Services.AddScoped<IOutboxStore, OutboxStore>();
@@ -43,5 +46,7 @@ if (app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 
 app.MapControllers();
+
+app.MapHealthChecks("/health");
 
 app.Run();
