@@ -1,12 +1,9 @@
 ﻿using Microsoft.EntityFrameworkCore;
-using Polly;
-using Polly.CircuitBreaker;
-using Polly.Fallback;
-using Polly.Retry;
-using Polly.Wrap;
+using System.Text.Json;
 using TransactionProcessor.Application.DTOs;
 using TransactionProcessor.Application.Helpers;
 using TransactionProcessor.Application.Interfaces;
+using TransactionProcessor.Application.Outbox;
 using TransactionProcessor.Domain.Entities;
 using TransactionProcessor.Domain.Enums;
 using TransactionProcessor.Domain.Exceptions;
@@ -17,47 +14,19 @@ public class TransactionService : ITransactionService
 {
     private readonly IAccountRepository _accountRepository;
     private readonly ITransactionRepository _transactionRepository;
+    private readonly IOutboxStore _outboxStore;
     private readonly IUnitOfWork _unitOfWork;
-
-    private readonly AsyncPolicyWrap<TransactionResultDto> _resilienceStrategy;
-
-    private static AsyncCircuitBreakerPolicy _circuitBreakerPolicy;
 
     public TransactionService(
         IAccountRepository accountRepository,
         ITransactionRepository transactionRepository,
+        IOutboxStore outboxStore,
         IUnitOfWork unitOfWork)
     {
         _accountRepository = accountRepository;
         _transactionRepository = transactionRepository;
+        _outboxStore = outboxStore;
         _unitOfWork = unitOfWork;
-
-        var retryPolicy = Policy
-            .Handle<DbUpdateConcurrencyException>()
-            .WaitAndRetryAsync(3, retryAttempt =>
-                TimeSpan.FromMilliseconds(100 * Math.Pow(2, retryAttempt)));
-
-        if (_circuitBreakerPolicy == null)
-        {
-            _circuitBreakerPolicy = Policy
-                .Handle<Exception>()
-                .CircuitBreakerAsync(5, TimeSpan.FromSeconds(30));
-        }
-
-        var fallbackPolicy = Policy<TransactionResultDto>
-            .Handle<Exception>()
-            .FallbackAsync(async (cancellationToken) =>
-            {
-                return new TransactionResultDto(
-                    Guid.Empty.ToString(),
-                    "failed",
-                    0, 0, 0,
-                    DateTime.UtcNow,
-                    "Service is temporarily unavailable. Please try again later."
-                );
-            });
-
-        _resilienceStrategy = Policy.WrapAsync(fallbackPolicy, _circuitBreakerPolicy.AsAsyncPolicy<TransactionResultDto>(), retryPolicy.AsAsyncPolicy<TransactionResultDto>());
     }
 
     public async Task<TransactionResultDto> ProcessTransactionAsync(CreateTransactionDto dto, CancellationToken ct)
@@ -73,14 +42,12 @@ public class TransactionService : ITransactionService
 
         for (var attempt = 1; attempt <= maxAttempts; attempt++)
         {
-            Transaction? transaction = null;
-
             try
             {
                 var account = await _accountRepository.GetByIdAsync(dto.AccountId, ct);
                 if (account is null) return Fail("Account not found");
 
-                transaction = new Transaction(account.Id, type, dto.Amount, dto.Currency, dto.ReferenceId);
+                var transaction = new Transaction(account.Id, type, dto.Amount, dto.Currency, dto.ReferenceId);
 
                 try
                 {
@@ -92,6 +59,7 @@ public class TransactionService : ITransactionService
                         case TransactionType.Capture: account.Capture(dto.Amount); break;
                         default: throw new DomainException("Operation not supported yet.");
                     }
+
                     transaction.MarkAsSuccess();
                 }
                 catch (DomainException ex)
@@ -100,6 +68,8 @@ public class TransactionService : ITransactionService
                 }
 
                 await _transactionRepository.AddAsync(transaction, ct);
+
+                await _outboxStore.AddAsync(BuildOutboxMessage(transaction, dto, account), ct);
 
                 await _unitOfWork.CommitAsync(ct);
 
@@ -123,14 +93,44 @@ public class TransactionService : ITransactionService
     }
 
     #region PRIVATE METHODS
+    private static OutboxMessageData BuildOutboxMessage(Transaction transaction, CreateTransactionDto dto, Account account)
+    {
+        var payload = JsonSerializer.Serialize(new
+        {
+            transaction_id = transaction.Id,
+            reference_id = dto.ReferenceId,
+            account_id = dto.AccountId,
+            operation = dto.Operation,
+            amount = dto.Amount,
+            currency = dto.Currency,
+            status = transaction.Status.ToString().ToLowerInvariant(),
+            balance = account.Balance,
+            reserved_balance = account.ReservedBalance,
+            available_balance = account.AvailableBalance,
+            error_message = transaction.ErrorMessage,
+            occurred_at = DateTimeOffset.UtcNow
+        });
+
+        return new OutboxMessageData(
+            Id: Guid.NewGuid(),
+            Type: "transaction.processed",
+            Payload: payload,
+            OccurredAt: DateTimeOffset.UtcNow,
+            Attempts: 0,
+            NextAttemptAt: null,
+            ProcessedAt: null,
+            LastError: null
+        );
+    }
+
     private static TransactionResultDto Fail(string msg) =>
         new(Guid.Empty.ToString(), "failed", 0, 0, 0, DateTime.UtcNow, msg);
 
-    private TransactionResultDto MapToResult(Transaction transaction, Account? account)
+    private static TransactionResultDto MapToResult(Transaction transaction, Account? account)
     {
         return new TransactionResultDto(
             transaction.Id.ToString(),
-            transaction.Status.ToString().ToLower(),
+            transaction.Status.ToString().ToLowerInvariant(),
             account?.Balance ?? 0,
             account?.ReservedBalance ?? 0,
             account?.AvailableBalance ?? 0,
