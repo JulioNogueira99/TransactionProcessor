@@ -60,22 +60,6 @@ public class TransactionService : ITransactionService
         _resilienceStrategy = Policy.WrapAsync(fallbackPolicy, _circuitBreakerPolicy.AsAsyncPolicy<TransactionResultDto>(), retryPolicy.AsAsyncPolicy<TransactionResultDto>());
     }
 
-    public async Task<AccountResultDto> CreateAccountAsync(CreateAccountDto dto, CancellationToken cancellationToken)
-    {
-        var account = new Account(dto.CreditLimit);
-        await _accountRepository.AddAsync(account, cancellationToken);
-        await _unitOfWork.CommitAsync(cancellationToken);
-
-        return new AccountResultDto(account.Id, account.Balance, account.AvailableBalance, account.CreditLimit);
-    }
-
-    public async Task<AccountResultDto?> GetAccountAsync(Guid id, CancellationToken cancellationToken)
-    {
-        var account = await _accountRepository.GetByIdAsync(id, cancellationToken);
-        if (account == null) return null;
-        return new AccountResultDto(account.Id, account.Balance, account.AvailableBalance, account.CreditLimit);
-    }
-
     public async Task<TransactionResultDto> ProcessTransactionAsync(CreateTransactionDto dto, CancellationToken ct)
     {
         var existing = await _transactionRepository.GetByReferenceIdAsync(dto.ReferenceId, ct);

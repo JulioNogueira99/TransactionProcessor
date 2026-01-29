@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using System.Reflection;
 using TransactionProcessor.Application.Interfaces;
 using TransactionProcessor.Application.Services;
 using TransactionProcessor.Infrastructure.Context;
@@ -24,7 +25,9 @@ builder.Services.AddScoped<IUnitOfWork>(sp => sp.GetRequiredService<AppDbContext
 builder.Services.AddScoped<IOutboxStore, OutboxStore>();
 builder.Services.AddScoped<ITransactionRepository, TransactionRepository>();
 builder.Services.AddScoped<IAccountRepository, AccountRepository>();
+
 builder.Services.AddScoped<ITransactionService, TransactionService>();
+builder.Services.AddScoped<IAccountService, AccountService>();
 
 builder.Services.AddSingleton<IEventPublisher, LoggingEventPublisher>();
 builder.Services.AddHostedService<OutboxPublisherWorker>();
