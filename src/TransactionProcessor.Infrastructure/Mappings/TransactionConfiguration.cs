@@ -40,6 +40,8 @@ namespace TransactionProcessor.Infrastructure.Mappings
                 .WithMany()
                 .HasForeignKey(x => x.AccountId)
                 .OnDelete(DeleteBehavior.Restrict);
+
+            builder.HasIndex(x => new { x.AccountId, x.CreatedAt });
         }
     }
 }

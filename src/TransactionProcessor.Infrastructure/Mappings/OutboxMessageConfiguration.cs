@@ -18,7 +18,6 @@ public class OutboxMessageConfiguration : IEntityTypeConfiguration<OutboxMessage
 
         builder.Property(x => x.Attempts).IsRequired();
 
-        builder.HasIndex(x => x.ProcessedAt);
-        builder.HasIndex(x => x.NextAttemptAt);
+        builder.HasIndex(x => new { x.ProcessedAt, x.NextAttemptAt });
     }
 }

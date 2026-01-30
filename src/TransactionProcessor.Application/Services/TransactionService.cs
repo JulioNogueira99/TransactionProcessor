@@ -40,7 +40,10 @@ public class TransactionService : ITransactionService
     {
         var existing = await _transactionRepository.GetByReferenceIdAsync(dto.ReferenceId, ct);
         if (existing != null)
-            return MapToResult(existing, existing.Account);
+        {
+            var account = await _accountRepository.GetByIdAsync(existing.AccountId, ct);
+            return MapToResult(existing, account);
+        }
 
 
         if (!Enum.TryParse<TransactionType>(dto.Operation, true, out var type))
