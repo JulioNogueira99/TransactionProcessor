@@ -6,10 +6,15 @@ using TransactionProcessor.Infrastructure.Context;
 using TransactionProcessor.Infrastructure.Locking;
 using TransactionProcessor.Infrastructure.Outbox;
 using TransactionProcessor.Infrastructure.Repositories;
+using FluentValidation;
+using FluentValidation.AspNetCore;
+using TransactionProcessor.Application.Validators;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers();
+builder.Services.AddFluentValidationAutoValidation();
+builder.Services.AddFluentValidationClientsideAdapters();
 
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();

@@ -12,11 +12,8 @@ public sealed class SqlServerAccountLock : IAccountLock
 
     public async Task AcquireAsync(Guid accountId, CancellationToken ct)
     {
-        // Lock por recurso: "account:{id}"
         var resource = $"account:{accountId:D}";
 
-        // LockOwner='Transaction' prende o lock até commit/rollback
-        // LockTimeout = 10s (ajuste se quiser)
         var rows = await _db.Database.ExecuteSqlInterpolatedAsync($@"
             DECLARE @result int;
             EXEC @result = sp_getapplock
@@ -27,9 +24,6 @@ public sealed class SqlServerAccountLock : IAccountLock
             SELECT @result;",
             ct);
 
-        // Observação: ExecuteSqlInterpolatedAsync retorna número de linhas, não o @result.
-        // Então, para validar o retorno corretamente, o ideal é usar FromSql e ler o valor.
-        // Pra manter simples e 100% correto, use o método abaixo:
         await EnsureLockAcquired(resource, ct);
     }
 
@@ -48,12 +42,10 @@ public sealed class SqlServerAccountLock : IAccountLock
             .Select(x => x.Result)
             .FirstAsync(ct);
 
-        // >= 0 = sucesso; < 0 = falha (timeout/cancel/etc)
         if (result < 0)
             throw new TimeoutException($"Could not acquire account lock (sp_getapplock result={result}).");
     }
 
-    // Tipo “shadow” só pra ler o resultado do SELECT
     private sealed class AppLockResult
     {
         public int Result { get; set; }
