@@ -1,5 +1,4 @@
 using Microsoft.EntityFrameworkCore;
-using System.Reflection;
 using TransactionProcessor.Api.Health;
 using TransactionProcessor.Application.Interfaces;
 using TransactionProcessor.Application.Services;
@@ -21,12 +20,10 @@ if (string.IsNullOrWhiteSpace(connectionString))
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlServer(connectionString));
 
-builder.Services.AddHealthChecks()
-    .AddDbContextCheck<AppDbContext>("db")
-    .AddCheck<OutboxCircuitBreakerHealthCheck>("outbox_circuit");
-
-
 builder.Services.AddScoped<IUnitOfWork>(sp => sp.GetRequiredService<AppDbContext>());
+
+builder.Services.AddHealthChecks()
+    .AddDbContextCheck<AppDbContext>("db");
 
 builder.Services.AddScoped<IOutboxStore, OutboxStore>();
 builder.Services.AddScoped<ITransactionRepository, TransactionRepository>();

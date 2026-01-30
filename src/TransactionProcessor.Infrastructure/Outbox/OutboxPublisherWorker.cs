@@ -52,6 +52,8 @@ public sealed class OutboxPublisherWorker : BackgroundService
 
                 await outbox.MarkProcessedAsync(msg.Id, DateTimeOffset.UtcNow, ct);
                 await uow.CommitAsync(ct);
+
+                _logger.LogInformation("Outbox published: id={Id} type={Type}", msg.Id, msg.Type);
             }
             catch (Exception ex)
             {

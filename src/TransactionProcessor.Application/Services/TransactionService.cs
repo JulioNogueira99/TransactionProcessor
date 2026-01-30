@@ -1,4 +1,5 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using System.Text.Json;
 using TransactionProcessor.Application.DTOs;
 using TransactionProcessor.Application.Helpers;
@@ -16,17 +17,20 @@ public class TransactionService : ITransactionService
     private readonly ITransactionRepository _transactionRepository;
     private readonly IOutboxStore _outboxStore;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly ILogger<TransactionService> _logger;
 
     public TransactionService(
         IAccountRepository accountRepository,
         ITransactionRepository transactionRepository,
         IOutboxStore outboxStore,
-        IUnitOfWork unitOfWork)
+        IUnitOfWork unitOfWork,
+        ILogger<TransactionService> logger)
     {
         _accountRepository = accountRepository;
         _transactionRepository = transactionRepository;
         _outboxStore = outboxStore;
         _unitOfWork = unitOfWork;
+        _logger = logger;
     }
 
     public async Task<TransactionResultDto> ProcessTransactionAsync(CreateTransactionDto dto, CancellationToken ct)
@@ -34,6 +38,7 @@ public class TransactionService : ITransactionService
         var existing = await _transactionRepository.GetByReferenceIdAsync(dto.ReferenceId, ct);
         if (existing != null)
             return MapToResult(existing, existing.Account);
+
 
         if (!Enum.TryParse<TransactionType>(dto.Operation, true, out var type))
             return Fail($"Unknown operation: {dto.Operation}");
@@ -72,6 +77,9 @@ public class TransactionService : ITransactionService
                 await _outboxStore.AddAsync(BuildOutboxMessage(transaction, dto, account), ct);
 
                 await _unitOfWork.CommitAsync(ct);
+
+                _logger.LogInformation("Transaction processed: reference_id={ReferenceId} transaction_id={TransactionId} status={Status} account_id={AccountId}",
+                    dto.ReferenceId, transaction.Id, transaction.Status, dto.AccountId);
 
                 return MapToResult(transaction, account);
             }
