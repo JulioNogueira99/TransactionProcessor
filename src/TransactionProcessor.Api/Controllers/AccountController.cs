@@ -14,18 +14,24 @@ public class AccountsController : ControllerBase
 
     [HttpPost]
     [ProducesResponseType(typeof(AccountResultDto), StatusCodes.Status201Created)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> Create([FromBody] CreateAccountDto dto, CancellationToken ct)
     {
-        var result = await _service.CreateAccountAsync(dto, ct);
-        return CreatedAtAction(nameof(GetById), new { id = result.AccountId }, result);
+        var created = await _service.CreateAccountAsync(dto, ct);
+
+        return CreatedAtAction(nameof(GetById), new { id = created.AccountId }, created);
     }
 
     [HttpGet("{id:guid}")]
     [ProducesResponseType(typeof(AccountResultDto), StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetById(Guid id, CancellationToken ct)
     {
-        var result = await _service.GetAccountAsync(id, ct);
-        return result is null ? NotFound() : Ok(result);
+        var account = await _service.GetAccountAsync(id, ct);
+
+        if (account is null)
+            return NotFound(Problem(title: "Account not found", statusCode: StatusCodes.Status404NotFound));
+
+        return Ok(account);
     }
 }
