@@ -45,6 +45,7 @@ namespace TransactionProcessor.Domain.Entities
         public void MarkAsSuccess()
         {
             Status = TransactionStatus.Success;
+            ErrorMessage = null;
         }
 
         public void MarkAsFailed(string error)
