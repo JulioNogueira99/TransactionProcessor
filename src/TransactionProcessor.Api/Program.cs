@@ -3,6 +3,7 @@ using TransactionProcessor.Api.Health;
 using TransactionProcessor.Application.Interfaces;
 using TransactionProcessor.Application.Services;
 using TransactionProcessor.Infrastructure.Context;
+using TransactionProcessor.Infrastructure.Locking;
 using TransactionProcessor.Infrastructure.Outbox;
 using TransactionProcessor.Infrastructure.Repositories;
 
@@ -18,7 +19,12 @@ if (string.IsNullOrWhiteSpace(connectionString))
     throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
 
 builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseSqlServer(connectionString));
+    options.UseSqlServer(connectionString, sql =>
+    {
+        sql.CommandTimeout(10); 
+        sql.EnableRetryOnFailure();
+    }));
+
 
 builder.Services.AddScoped<IUnitOfWork>(sp => sp.GetRequiredService<AppDbContext>());
 
@@ -28,6 +34,8 @@ builder.Services.AddHealthChecks()
 builder.Services.AddScoped<IOutboxStore, OutboxStore>();
 builder.Services.AddScoped<ITransactionRepository, TransactionRepository>();
 builder.Services.AddScoped<IAccountRepository, AccountRepository>();
+
+builder.Services.AddScoped<IAccountLock, SqlServerAccountLock>();
 
 builder.Services.AddScoped<ITransactionService, TransactionService>();
 builder.Services.AddScoped<IAccountService, AccountService>();

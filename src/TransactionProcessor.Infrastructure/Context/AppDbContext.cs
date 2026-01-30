@@ -1,6 +1,7 @@
 ﻿using Microsoft.EntityFrameworkCore;
-using TransactionProcessor.Domain.Entities;
+using Microsoft.EntityFrameworkCore.Storage;
 using TransactionProcessor.Application.Interfaces;
+using TransactionProcessor.Domain.Entities;
 using TransactionProcessor.Infrastructure.Outbox;
 
 namespace TransactionProcessor.Infrastructure.Context
@@ -27,5 +28,21 @@ namespace TransactionProcessor.Infrastructure.Context
 
         public void ClearTracking()
             => ChangeTracker.Clear();
+
+        public async Task<IUnitOfWorkTransaction> BeginTransactionAsync(CancellationToken ct)
+        {
+            var tx = await Database.BeginTransactionAsync(ct);
+            return new EfUnitOfWorkTransaction(tx);
+        }
+
+        private sealed class EfUnitOfWorkTransaction : IUnitOfWorkTransaction
+        {
+            private readonly IDbContextTransaction _tx;
+            public EfUnitOfWorkTransaction(IDbContextTransaction tx) => _tx = tx;
+
+            public Task CommitAsync(CancellationToken ct) => _tx.CommitAsync(ct);
+            public Task RollbackAsync(CancellationToken ct) => _tx.RollbackAsync(ct);
+            public ValueTask DisposeAsync() => _tx.DisposeAsync();
+        }
     }
 }

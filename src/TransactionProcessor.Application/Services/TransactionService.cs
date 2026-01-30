@@ -18,19 +18,22 @@ public class TransactionService : ITransactionService
     private readonly IOutboxStore _outboxStore;
     private readonly IUnitOfWork _unitOfWork;
     private readonly ILogger<TransactionService> _logger;
+    private readonly IAccountLock _accountLock;
 
     public TransactionService(
         IAccountRepository accountRepository,
         ITransactionRepository transactionRepository,
         IOutboxStore outboxStore,
         IUnitOfWork unitOfWork,
-        ILogger<TransactionService> logger)
+        ILogger<TransactionService> logger,
+        IAccountLock accountLock)
     {
         _accountRepository = accountRepository;
         _transactionRepository = transactionRepository;
         _outboxStore = outboxStore;
         _unitOfWork = unitOfWork;
         _logger = logger;
+        _accountLock = accountLock;
     }
 
     public async Task<TransactionResultDto> ProcessTransactionAsync(CreateTransactionDto dto, CancellationToken ct)
@@ -49,6 +52,10 @@ public class TransactionService : ITransactionService
         {
             try
             {
+                await using var tx = await _unitOfWork.BeginTransactionAsync(ct);
+
+                await _accountLock.AcquireAsync(dto.AccountId, ct);
+
                 var account = await _accountRepository.GetByIdAsync(dto.AccountId, ct);
                 if (account is null) return Fail("Account not found");
 
@@ -73,10 +80,10 @@ public class TransactionService : ITransactionService
                 }
 
                 await _transactionRepository.AddAsync(transaction, ct);
-
                 await _outboxStore.AddAsync(BuildOutboxMessage(transaction, dto, account), ct);
 
                 await _unitOfWork.CommitAsync(ct);
+                await tx.CommitAsync(ct);
 
                 _logger.LogInformation("Transaction processed: reference_id={ReferenceId} transaction_id={TransactionId} status={Status} account_id={AccountId}",
                     dto.ReferenceId, transaction.Id, transaction.Status, dto.AccountId);
@@ -87,6 +94,9 @@ public class TransactionService : ITransactionService
             {
                 _unitOfWork.ClearTracking();
                 if (attempt == maxAttempts) throw;
+
+                var delayMs = (int)Math.Min(2000, 200 * Math.Pow(2, attempt));
+                await Task.Delay(delayMs, ct);
             }
             catch (DbUpdateException ex) when (SqlServerErrors.IsUniqueViolation(ex))
             {

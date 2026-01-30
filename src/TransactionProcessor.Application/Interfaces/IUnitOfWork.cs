@@ -1,14 +1,15 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿namespace TransactionProcessor.Application.Interfaces;
 
-namespace TransactionProcessor.Application.Interfaces
+public interface IUnitOfWork
 {
-    public interface IUnitOfWork
-    {
-        Task CommitAsync(CancellationToken cancellationToken);
-        void ClearTracking();
-    }
+    Task CommitAsync(CancellationToken ct);
+    void ClearTracking();
+
+    Task<IUnitOfWorkTransaction> BeginTransactionAsync(CancellationToken ct);
+}
+
+public interface IUnitOfWorkTransaction : IAsyncDisposable
+{
+    Task CommitAsync(CancellationToken ct);
+    Task RollbackAsync(CancellationToken ct);
 }
