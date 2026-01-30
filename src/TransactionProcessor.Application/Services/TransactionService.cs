@@ -55,43 +55,45 @@ public class TransactionService : ITransactionService
         {
             try
             {
-                await using var tx = await _unitOfWork.BeginTransactionAsync(ct);
-
-                await _accountLock.AcquireAsync(dto.AccountId, ct);
-
-                var account = await _accountRepository.GetByIdAsync(dto.AccountId, ct);
-                if (account is null) return Fail("Account not found");
-
-                var transaction = new Transaction(account.Id, type, dto.Amount, dto.Currency, dto.ReferenceId);
-
-                try
+                return await _unitOfWork.ExecuteAsync(async ct2 =>
                 {
-                    switch (type)
+                    await using var tx = await _unitOfWork.BeginTransactionAsync(ct2);
+
+                    await _accountLock.AcquireAsync(dto.AccountId, ct2);
+
+                    var account = await _accountRepository.GetByIdAsync(dto.AccountId, ct);
+                    if (account is null) return Fail("Account not found");
+
+                    var transaction = new Transaction(account.Id, type, dto.Amount, dto.Currency, dto.ReferenceId);
+
+                    try
                     {
-                        case TransactionType.Credit: account.Credit(dto.Amount); break;
-                        case TransactionType.Debit: account.Debit(dto.Amount); break;
-                        case TransactionType.Reserve: account.Reserve(dto.Amount); break;
-                        case TransactionType.Capture: account.Capture(dto.Amount); break;
-                        default: throw new DomainException("Operation not supported yet.");
+                        switch (type)
+                        {
+                            case TransactionType.Credit: account.Credit(dto.Amount); break;
+                            case TransactionType.Debit: account.Debit(dto.Amount); break;
+                            case TransactionType.Reserve: account.Reserve(dto.Amount); break;
+                            case TransactionType.Capture: account.Capture(dto.Amount); break;
+                            default: throw new DomainException("Operation not supported yet.");
+                        }
+
+                        transaction.MarkAsSuccess();
+                    }
+                    catch (DomainException ex)
+                    {
+                        transaction.MarkAsFailed(ex.Message);
                     }
 
-                    transaction.MarkAsSuccess();
-                }
-                catch (DomainException ex)
-                {
-                    transaction.MarkAsFailed(ex.Message);
-                }
+                    await _transactionRepository.AddAsync(transaction, ct);
+                    await _outboxStore.AddAsync(BuildOutboxMessage(transaction, dto, account), ct);
 
-                await _transactionRepository.AddAsync(transaction, ct);
-                await _outboxStore.AddAsync(BuildOutboxMessage(transaction, dto, account), ct);
+                    await _unitOfWork.CommitAsync(ct2);
+                    await tx.CommitAsync(ct2);
 
-                await _unitOfWork.CommitAsync(ct);
-                await tx.CommitAsync(ct);
-
-                _logger.LogInformation("Transaction processed: reference_id={ReferenceId} transaction_id={TransactionId} status={Status} account_id={AccountId}",
-                    dto.ReferenceId, transaction.Id, transaction.Status, dto.AccountId);
-
-                return MapToResult(transaction, account);
+                    _logger.LogInformation("Transaction processed: reference_id={ReferenceId} transaction_id={TransactionId} status={Status} account_id={AccountId}",
+                         dto.ReferenceId, transaction.Id, transaction.Status, dto.AccountId);
+                    return MapToResult(transaction, account);
+                }, ct);
             }
             catch (DbUpdateConcurrencyException)
             {

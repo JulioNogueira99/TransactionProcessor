@@ -6,6 +6,9 @@ public interface IUnitOfWork
     void ClearTracking();
 
     Task<IUnitOfWorkTransaction> BeginTransactionAsync(CancellationToken ct);
+
+    Task<T> ExecuteAsync<T>(Func<CancellationToken, Task<T>> action, CancellationToken ct);
+    Task ExecuteAsync(Func<CancellationToken, Task> action, CancellationToken ct);
 }
 
 public interface IUnitOfWorkTransaction : IAsyncDisposable

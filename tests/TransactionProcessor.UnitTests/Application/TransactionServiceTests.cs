@@ -43,6 +43,9 @@ public class TransactionServiceTests
         accountRepo.Setup(r => r.GetByIdAsync(accountId, It.IsAny<CancellationToken>()))
                    .ReturnsAsync(account);
 
+        uow.Setup(u => u.ExecuteAsync(It.IsAny<Func<CancellationToken, Task<TransactionResultDto>>>(), It.IsAny<CancellationToken>()))
+            .Returns<Func<CancellationToken, Task<TransactionResultDto>>, CancellationToken>((fn, token) => fn(token));
+
         var service = new TransactionService(
             accountRepo.Object,
             txRepo.Object,
@@ -98,6 +101,9 @@ public class TransactionServiceTests
 
         accountLock.Setup(l => l.AcquireAsync(accountId, It.IsAny<CancellationToken>()))
                    .Returns(Task.CompletedTask);
+
+        uow.Setup(u => u.ExecuteAsync(It.IsAny<Func<CancellationToken, Task<TransactionResultDto>>>(), It.IsAny<CancellationToken>()))
+            .Returns<Func<CancellationToken, Task<TransactionResultDto>>, CancellationToken>((fn, token) => fn(token));
 
         var uowTx = new Mock<IUnitOfWorkTransaction>(MockBehavior.Strict);
         uowTx.Setup(t => t.CommitAsync(It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);

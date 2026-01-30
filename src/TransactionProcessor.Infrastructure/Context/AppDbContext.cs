@@ -35,6 +35,18 @@ namespace TransactionProcessor.Infrastructure.Context
             return new EfUnitOfWorkTransaction(tx);
         }
 
+        public async Task<T> ExecuteAsync<T>(Func<CancellationToken, Task<T>> action, CancellationToken ct)
+        {
+            var strategy = Database.CreateExecutionStrategy();
+            return await strategy.ExecuteAsync(async () => await action(ct));
+        }
+
+        public async Task ExecuteAsync(Func<CancellationToken, Task> action, CancellationToken ct)
+        {
+            var strategy = Database.CreateExecutionStrategy();
+            await strategy.ExecuteAsync(async () => await action(ct));
+        }
+
         private sealed class EfUnitOfWorkTransaction : IUnitOfWorkTransaction
         {
             private readonly IDbContextTransaction _tx;
