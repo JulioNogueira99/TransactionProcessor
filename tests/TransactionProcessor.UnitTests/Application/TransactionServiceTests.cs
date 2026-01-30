@@ -19,7 +19,6 @@ public class TransactionServiceTests
         var accountId = Guid.NewGuid();
         var referenceId = "ACC-001";
 
-        // Transação já existente
         var existingTx = new Transaction(
             accountId: accountId,
             type: TransactionType.Credit,
@@ -29,6 +28,8 @@ public class TransactionServiceTests
         );
         existingTx.MarkAsSuccess();
 
+        var account = new Account(creditLimit: 100);
+
         var accountRepo = new Mock<IAccountRepository>(MockBehavior.Strict);
         var txRepo = new Mock<ITransactionRepository>(MockBehavior.Strict);
         var outbox = new Mock<IOutboxStore>(MockBehavior.Strict);
@@ -36,9 +37,11 @@ public class TransactionServiceTests
         var logger = new Mock<ILogger<TransactionService>>();
         var accountLock = new Mock<IAccountLock>(MockBehavior.Strict);
 
-
         txRepo.Setup(r => r.GetByReferenceIdAsync(referenceId, It.IsAny<CancellationToken>()))
               .ReturnsAsync(existingTx);
+
+        accountRepo.Setup(r => r.GetByIdAsync(accountId, It.IsAny<CancellationToken>()))
+                   .ReturnsAsync(account);
 
         var service = new TransactionService(
             accountRepo.Object,
@@ -67,8 +70,7 @@ public class TransactionServiceTests
         outbox.Verify(r => r.AddAsync(It.IsAny<OutboxMessageData>(), It.IsAny<CancellationToken>()), Times.Never);
         uow.Verify(r => r.CommitAsync(It.IsAny<CancellationToken>()), Times.Never);
 
-        accountRepo.Verify(r => r.GetByIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()), Times.Never);
-
+        accountRepo.Verify(r => r.GetByIdAsync(accountId, It.IsAny<CancellationToken>()), Times.Once);
         txRepo.Verify(r => r.GetByReferenceIdAsync(referenceId, It.IsAny<CancellationToken>()), Times.Once);
     }
 
@@ -94,15 +96,26 @@ public class TransactionServiceTests
         accountRepo.Setup(r => r.GetByIdAsync(accountId, It.IsAny<CancellationToken>()))
                    .ReturnsAsync(account);
 
+        accountLock.Setup(l => l.AcquireAsync(accountId, It.IsAny<CancellationToken>()))
+                   .Returns(Task.CompletedTask);
+
+        var uowTx = new Mock<IUnitOfWorkTransaction>(MockBehavior.Strict);
+        uowTx.Setup(t => t.CommitAsync(It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
+        uowTx.Setup(t => t.RollbackAsync(It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
+        uowTx.Setup(t => t.DisposeAsync()).Returns(ValueTask.CompletedTask);
+
+        uow.Setup(u => u.BeginTransactionAsync(It.IsAny<CancellationToken>()))
+           .ReturnsAsync(uowTx.Object);
+
         Transaction? savedTx = null;
         txRepo.Setup(r => r.AddAsync(It.IsAny<Transaction>(), It.IsAny<CancellationToken>()))
               .Callback<Transaction, CancellationToken>((t, _) => savedTx = t)
               .Returns(Task.CompletedTask);
 
-        outbox.Setup(r => r.AddAsync(It.IsAny<OutboxMessageData>(), It.IsAny<CancellationToken>()))
+        outbox.Setup(o => o.AddAsync(It.IsAny<OutboxMessageData>(), It.IsAny<CancellationToken>()))
               .Returns(Task.CompletedTask);
 
-        uow.Setup(r => r.CommitAsync(It.IsAny<CancellationToken>()))
+        uow.Setup(u => u.CommitAsync(It.IsAny<CancellationToken>()))
            .Returns(Task.CompletedTask);
 
         var service = new TransactionService(
@@ -131,10 +144,14 @@ public class TransactionServiceTests
 
         txRepo.Verify(r => r.GetByReferenceIdAsync(referenceId, It.IsAny<CancellationToken>()), Times.Once);
         accountRepo.Verify(r => r.GetByIdAsync(accountId, It.IsAny<CancellationToken>()), Times.Once);
+        accountLock.Verify(l => l.AcquireAsync(accountId, It.IsAny<CancellationToken>()), Times.Once);
 
+        uow.Verify(u => u.BeginTransactionAsync(It.IsAny<CancellationToken>()), Times.Once);
         txRepo.Verify(r => r.AddAsync(It.IsAny<Transaction>(), It.IsAny<CancellationToken>()), Times.Once);
-        outbox.Verify(r => r.AddAsync(It.IsAny<OutboxMessageData>(), It.IsAny<CancellationToken>()), Times.Once);
-        uow.Verify(r => r.CommitAsync(It.IsAny<CancellationToken>()), Times.Once);
+        outbox.Verify(o => o.AddAsync(It.IsAny<OutboxMessageData>(), It.IsAny<CancellationToken>()), Times.Once);
+        uow.Verify(u => u.CommitAsync(It.IsAny<CancellationToken>()), Times.Once);
+
+        uowTx.Verify(t => t.CommitAsync(It.IsAny<CancellationToken>()), Times.Once);
 
         Assert.NotNull(savedTx);
         Assert.Equal(referenceId, savedTx!.ReferenceId);
