@@ -164,14 +164,22 @@ Regras do PDF implementadas no domínio:
 
 ### Via Docker Compose (recomendado)
 
-Pré-requisitos:
-- Docker Desktop + Docker Compose
+### Pré-requisitos
+* [Docker Desktop](https://www.docker.com/products/docker-desktop/) instalado e rodando.
 
-Na raiz do repositório:
+### Passo a Passo
 
-```bash
-docker compose up --build
-```
+1.  **Clone o repositório:**
+    ```bash
+    git clone https://github.com/JulioNogueira99/TransactionProcessor.git
+    cd TransactionProcessor
+    ```
+
+2.  **Suba o ambiente:**
+    Execute o comando abaixo na raiz do projeto. Ele irá compilar a API, baixar o SQL Server e configurar a rede.
+    ```bash
+    docker compose up --build
+    ```
 
 A API ficará disponível em:
 - Swagger: `http://localhost:8080/swagger`
