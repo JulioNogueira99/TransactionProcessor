@@ -45,6 +45,16 @@ public class TransactionsController : ControllerBase
                         statusCode: StatusCodes.Status400BadRequest));
                 }
 
+                if (dto.Operation.Equals("transfer", StringComparison.OrdinalIgnoreCase) && dto.DestinationAccountId is null)
+                {
+                    return BadRequest(Problem
+                    (
+                        title: "Invalid request",
+                        detail: "destination_account_id is required for transfer",
+                        statusCode: StatusCodes.Status400BadRequest)
+                    );
+                }
+
                 return UnprocessableEntity(Problem(
                     title: "Business rule violation",
                     detail: result.ErrorMessage,

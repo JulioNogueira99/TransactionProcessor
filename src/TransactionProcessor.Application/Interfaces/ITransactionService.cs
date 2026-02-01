@@ -4,6 +4,6 @@ namespace TransactionProcessor.Application.Interfaces
 {
     public interface ITransactionService
     {
-        Task<TransactionResultDto> ProcessTransactionAsync(CreateTransactionDto dto, CancellationToken cancellationToken);
+        Task<TransactionResultDto> ProcessTransactionAsync(CreateTransactionDto dto, CancellationToken ct);
     }
 }

@@ -1,14 +1,11 @@
 using Microsoft.EntityFrameworkCore;
-using TransactionProcessor.Api.Health;
 using TransactionProcessor.Application.Interfaces;
 using TransactionProcessor.Application.Services;
 using TransactionProcessor.Infrastructure.Context;
 using TransactionProcessor.Infrastructure.Locking;
 using TransactionProcessor.Infrastructure.Outbox;
 using TransactionProcessor.Infrastructure.Repositories;
-using FluentValidation;
 using FluentValidation.AspNetCore;
-using TransactionProcessor.Application.Validators;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -43,6 +40,8 @@ builder.Services.AddHealthChecks()
 builder.Services.AddScoped<IOutboxStore, OutboxStore>();
 builder.Services.AddScoped<ITransactionRepository, TransactionRepository>();
 builder.Services.AddScoped<IAccountRepository, AccountRepository>();
+builder.Services.AddScoped<ICustomerRepository, CustomerRepository>();
+
 
 builder.Services.AddScoped<IAccountLock, SqlServerAccountLock>();
 

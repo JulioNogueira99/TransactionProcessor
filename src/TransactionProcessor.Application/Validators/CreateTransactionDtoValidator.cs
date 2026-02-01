@@ -5,7 +5,7 @@ namespace TransactionProcessor.Application.Validators
 {
     public sealed class CreateTransactionDtoValidator : AbstractValidator<CreateTransactionDto>
     {
-        private static readonly string[] AllowedOperations = ["credit", "debit", "reserve", "capture"];
+        private static readonly string[] AllowedOperations = ["credit", "debit", "reserve", "capture", "transfer"];
 
         public CreateTransactionDtoValidator()
         {
@@ -31,6 +31,11 @@ namespace TransactionProcessor.Application.Validators
                 .NotEmpty().WithMessage("operation is required.")
                 .Must(op => AllowedOperations.Contains(op.Trim().ToLowerInvariant()))
                 .WithMessage($"operation must be one of: {string.Join(", ", AllowedOperations)}.");
+
+            RuleFor(x => x.DestinationAccountId)
+                .NotNull()
+                .When(x => x.Operation.Trim().Equals("transfer", StringComparison.OrdinalIgnoreCase))
+                .WithMessage("destination_account_id is required for transfer.");
         }
     }
 }

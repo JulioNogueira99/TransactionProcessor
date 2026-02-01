@@ -10,10 +10,8 @@ public class TransactionTests
     [Fact]
     public void NewTransaction_ShouldStartWithPendingStatus()
     {
-        // Arrange
         var accountId = Guid.NewGuid();
 
-        // Act
         var tx = new Transaction(
             accountId: accountId,
             type: TransactionType.Credit,
@@ -22,7 +20,6 @@ public class TransactionTests
             referenceId: "ACC-TRX-001"
         );
 
-        // Assert
         Assert.Equal(accountId, tx.AccountId);
         Assert.Equal(TransactionType.Credit, tx.Type);
         Assert.Equal(10m, tx.Amount);
@@ -50,10 +47,8 @@ public class TransactionTests
         Assert.Equal(TransactionStatus.Failed, tx.Status);
         Assert.NotNull(tx.ErrorMessage);
 
-        // Act
         tx.MarkAsSuccess();
 
-        // Assert
         Assert.Equal(TransactionStatus.Success, tx.Status);
         Assert.True(string.IsNullOrWhiteSpace(tx.ErrorMessage));
     }
@@ -69,10 +64,8 @@ public class TransactionTests
             referenceId: "ACC-TRX-003"
         );
 
-        // Act
         tx.MarkAsFailed("Insufficient funds");
 
-        // Assert
         Assert.Equal(TransactionStatus.Failed, tx.Status);
         Assert.Equal("Insufficient funds", tx.ErrorMessage);
     }

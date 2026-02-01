@@ -10,7 +10,8 @@ namespace TransactionProcessor.Application.Interfaces
     public interface ITransactionRepository
     {
         Task AddAsync(Transaction transaction, CancellationToken cancellationToken);
-
-        Task<Transaction?> GetByReferenceIdAsync(string referenceId, CancellationToken cancellationToken);
+        Task<Transaction?> GetByReferenceIdAsync(string referenceId, byte leg, CancellationToken cancellationToken);
+        Task<List<Transaction>> GetAllByReferenceIdAsync(string referenceId, CancellationToken cancellationToken);
     }
+
 }

@@ -1,4 +1,7 @@
-﻿using Microsoft.Extensions.Logging;
+﻿using System;
+using System.Threading;
+using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Moq;
 using TransactionProcessor.Application.DTOs;
 using TransactionProcessor.Application.Interfaces;
@@ -6,16 +9,21 @@ using TransactionProcessor.Application.Outbox;
 using TransactionProcessor.Application.Services;
 using TransactionProcessor.Domain.Entities;
 using TransactionProcessor.Domain.Enums;
+using TransactionProcessor.Domain.Exceptions;
 using Xunit;
 
 namespace TransactionProcessor.UnitTests.Application;
 
 public class TransactionServiceTests
 {
+    private sealed class DummyAsyncDisposable : IAsyncDisposable
+    {
+        public ValueTask DisposeAsync() => ValueTask.CompletedTask;
+    }
+
     [Fact]
     public async Task ProcessTransactionAsync_ShouldReturnExistingTransaction_WhenReferenceIdAlreadyExists()
     {
-        // Arrange
         var accountId = Guid.NewGuid();
         var referenceId = "ACC-001";
 
@@ -24,11 +32,13 @@ public class TransactionServiceTests
             type: TransactionType.Credit,
             amount: 10m,
             currency: "BRL",
-            referenceId: referenceId
+            referenceId: referenceId,
+            leg: 0,
+            counterpartyAccountId: null
         );
         existingTx.MarkAsSuccess();
 
-        var account = new Account(creditLimit: 100);
+        var account = new Account(customerId: Guid.NewGuid(), creditLimit: 100);
 
         var accountRepo = new Mock<IAccountRepository>(MockBehavior.Strict);
         var txRepo = new Mock<ITransactionRepository>(MockBehavior.Strict);
@@ -37,14 +47,11 @@ public class TransactionServiceTests
         var logger = new Mock<ILogger<TransactionService>>();
         var accountLock = new Mock<IAccountLock>(MockBehavior.Strict);
 
-        txRepo.Setup(r => r.GetByReferenceIdAsync(referenceId, It.IsAny<CancellationToken>()))
+        txRepo.Setup(r => r.GetByReferenceIdAsync(referenceId, (byte)0, It.IsAny<CancellationToken>()))
               .ReturnsAsync(existingTx);
 
         accountRepo.Setup(r => r.GetByIdAsync(accountId, It.IsAny<CancellationToken>()))
                    .ReturnsAsync(account);
-
-        uow.Setup(u => u.ExecuteAsync(It.IsAny<Func<CancellationToken, Task<TransactionResultDto>>>(), It.IsAny<CancellationToken>()))
-            .Returns<Func<CancellationToken, Task<TransactionResultDto>>, CancellationToken>((fn, token) => fn(token));
 
         var service = new TransactionService(
             accountRepo.Object,
@@ -60,13 +67,12 @@ public class TransactionServiceTests
             Operation: "credit",
             Amount: 10m,
             Currency: "BRL",
-            ReferenceId: referenceId
+            ReferenceId: referenceId,
+            DestinationAccountId: null
         );
 
-        // Act
         var result = await service.ProcessTransactionAsync(dto, CancellationToken.None);
 
-        // Assert
         Assert.Equal(existingTx.Id.ToString(), result.TransactionId);
 
         txRepo.Verify(r => r.AddAsync(It.IsAny<Transaction>(), It.IsAny<CancellationToken>()), Times.Never);
@@ -74,17 +80,20 @@ public class TransactionServiceTests
         uow.Verify(r => r.CommitAsync(It.IsAny<CancellationToken>()), Times.Never);
 
         accountRepo.Verify(r => r.GetByIdAsync(accountId, It.IsAny<CancellationToken>()), Times.Once);
-        txRepo.Verify(r => r.GetByReferenceIdAsync(referenceId, It.IsAny<CancellationToken>()), Times.Once);
+        txRepo.Verify(r => r.GetByReferenceIdAsync(referenceId, (byte)0, It.IsAny<CancellationToken>()), Times.Once);
+
+        accountLock.Verify(l => l.AcquireAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()), Times.Never);
+        uow.Verify(u => u.BeginTransactionAsync(It.IsAny<CancellationToken>()), Times.Never);
+        uow.Verify(u => u.ExecuteAsync(It.IsAny<Func<CancellationToken, Task<TransactionResultDto>>>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact]
     public async Task ProcessTransactionAsync_ShouldPersistTransaction_Outbox_AndCommit_OnSuccess()
     {
-        // Arrange
         var accountId = Guid.NewGuid();
         var referenceId = "ACC-002";
 
-        var account = new Account(creditLimit: 100);
+        var account = new Account(customerId: Guid.NewGuid(), creditLimit: 100);
 
         var accountRepo = new Mock<IAccountRepository>(MockBehavior.Strict);
         var txRepo = new Mock<ITransactionRepository>(MockBehavior.Strict);
@@ -93,14 +102,14 @@ public class TransactionServiceTests
         var logger = new Mock<ILogger<TransactionService>>();
         var accountLock = new Mock<IAccountLock>(MockBehavior.Strict);
 
-        txRepo.Setup(r => r.GetByReferenceIdAsync(referenceId, It.IsAny<CancellationToken>()))
+        txRepo.Setup(r => r.GetByReferenceIdAsync(referenceId, (byte)0, It.IsAny<CancellationToken>()))
               .ReturnsAsync((Transaction?)null);
 
         accountRepo.Setup(r => r.GetByIdAsync(accountId, It.IsAny<CancellationToken>()))
                    .ReturnsAsync(account);
 
         accountLock.Setup(l => l.AcquireAsync(accountId, It.IsAny<CancellationToken>()))
-                   .Returns(Task.CompletedTask);
+                   .ReturnsAsync(new DummyAsyncDisposable());
 
         uow.Setup(u => u.ExecuteAsync(It.IsAny<Func<CancellationToken, Task<TransactionResultDto>>>(), It.IsAny<CancellationToken>()))
             .Returns<Func<CancellationToken, Task<TransactionResultDto>>, CancellationToken>((fn, token) => fn(token));
@@ -138,17 +147,16 @@ public class TransactionServiceTests
             Operation: "credit",
             Amount: 10m,
             Currency: "BRL",
-            ReferenceId: referenceId
+            ReferenceId: referenceId,
+            DestinationAccountId: null
         );
 
-        // Act
         var result = await service.ProcessTransactionAsync(dto, CancellationToken.None);
 
-        // Assert
         Assert.NotEqual(Guid.Empty.ToString(), result.TransactionId);
         Assert.Equal("success", result.Status);
 
-        txRepo.Verify(r => r.GetByReferenceIdAsync(referenceId, It.IsAny<CancellationToken>()), Times.Once);
+        txRepo.Verify(r => r.GetByReferenceIdAsync(referenceId, (byte)0, It.IsAny<CancellationToken>()), Times.Once);
         accountRepo.Verify(r => r.GetByIdAsync(accountId, It.IsAny<CancellationToken>()), Times.Once);
         accountLock.Verify(l => l.AcquireAsync(accountId, It.IsAny<CancellationToken>()), Times.Once);
 
@@ -164,5 +172,6 @@ public class TransactionServiceTests
         Assert.Equal(TransactionType.Credit, savedTx.Type);
         Assert.Equal(10m, savedTx.Amount);
         Assert.Equal("BRL", savedTx.Currency);
+        Assert.Equal((byte)0, savedTx.Leg);
     }
 }

@@ -1,10 +1,5 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using TransactionProcessor.Domain.Entities;
 
 namespace TransactionProcessor.Infrastructure.Mappings
@@ -32,6 +27,14 @@ namespace TransactionProcessor.Infrastructure.Mappings
             builder.Property(x => x.RowVersion)
                 .IsRowVersion()
                 .IsConcurrencyToken();
+
+            builder.Property(x => x.Status)
+                .HasConversion<string>()
+                .HasMaxLength(20)
+                .IsRequired();
+
+            builder.Property(x => x.CustomerId).IsRequired();
+            builder.HasIndex(x => x.CustomerId);
         }
     }
 }

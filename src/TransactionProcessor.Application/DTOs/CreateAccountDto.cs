@@ -3,6 +3,7 @@
 namespace TransactionProcessor.Application.DTOs
 {
     public record CreateAccountDto(
+        [property: JsonPropertyName("client_id")] string ClientId,
         [property: JsonPropertyName("credit_limit")] decimal CreditLimit
     );
 

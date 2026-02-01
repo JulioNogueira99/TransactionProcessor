@@ -8,6 +8,6 @@ namespace TransactionProcessor.Application.Interfaces
 {
     public interface IAccountLock
     {
-        Task AcquireAsync(Guid accountId, CancellationToken ct);
+        Task<IAsyncDisposable> AcquireAsync(Guid accountId, CancellationToken ct);
     }
 }

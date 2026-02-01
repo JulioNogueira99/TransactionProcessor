@@ -21,7 +21,7 @@ namespace TransactionProcessor.Infrastructure.Mappings
                 .HasPrecision(18, 2)
                 .IsRequired();
 
-            builder.HasIndex(x => x.ReferenceId)
+            builder.HasIndex(x => new { x.ReferenceId, x.Leg })
                 .IsUnique();
 
             builder.Property(x => x.Currency)
@@ -42,6 +42,12 @@ namespace TransactionProcessor.Infrastructure.Mappings
                 .OnDelete(DeleteBehavior.Restrict);
 
             builder.HasIndex(x => new { x.AccountId, x.CreatedAt });
+
+            builder.Property(x => x.Leg)
+                .HasDefaultValue((byte)0)
+                .IsRequired();
+
+            builder.Property(x => x.CounterpartyAccountId);
         }
     }
 }
