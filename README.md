@@ -1,5 +1,10 @@
 # TransactionProcessor — Desafio Técnico PagueVeloz (cliente Serasa) — Meta
 
+![Net Core](https://img.shields.io/badge/.NET%209-512BD4?style=flat&logo=dotnet&logoColor=white)
+![Docker](https://img.shields.io/badge/Docker-2496ED?style=flat&logo=docker&logoColor=white)
+![SQL Server](https://img.shields.io/badge/SQL%20Server-CC2927?style=flat&logo=microsoft-sql-server&logoColor=white)
+![Tests](https://img.shields.io/badge/Tests-xUnit-success)
+
 API REST em **.NET 9** para processamento de transações financeiras com **consistência**, **concorrência**, **idempotência**, **resiliência** e **processamento assíncrono via Outbox**.
 
 > ✅ Entrega pensada para o avaliador rodar com **1 comando**: `docker compose up --build` e acessar o **Swagger**.
