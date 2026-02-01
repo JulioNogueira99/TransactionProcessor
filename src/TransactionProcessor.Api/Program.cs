@@ -1,3 +1,4 @@
+using FluentValidation.AspNetCore;
 using Microsoft.EntityFrameworkCore;
 using TransactionProcessor.Application.Interfaces;
 using TransactionProcessor.Application.Services;
@@ -5,11 +6,11 @@ using TransactionProcessor.Infrastructure.Context;
 using TransactionProcessor.Infrastructure.Locking;
 using TransactionProcessor.Infrastructure.Outbox;
 using TransactionProcessor.Infrastructure.Repositories;
-using FluentValidation.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers();
+
 builder.Services.AddFluentValidationAutoValidation();
 builder.Services.AddFluentValidationClientsideAdapters();
 
@@ -42,7 +43,6 @@ builder.Services.AddScoped<ITransactionRepository, TransactionRepository>();
 builder.Services.AddScoped<IAccountRepository, AccountRepository>();
 builder.Services.AddScoped<ICustomerRepository, CustomerRepository>();
 
-
 builder.Services.AddScoped<IAccountLock, SqlServerAccountLock>();
 
 builder.Services.AddScoped<ITransactionService, TransactionService>();
@@ -53,13 +53,24 @@ builder.Services.AddHostedService<OutboxPublisherWorker>();
 
 var app = builder.Build();
 
+if (!app.Environment.IsEnvironment("Testing"))
+{
+    using var scope = app.Services.CreateScope();
+    var db = scope.ServiceProvider.GetService<AppDbContext>();
+    if (db is not null)
+        db.Database.Migrate();
+}
+
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI();
 }
 
-app.UseHttpsRedirection();
+if (!app.Environment.IsDevelopment())
+{
+    app.UseHttpsRedirection();
+}
 
 if (app.Environment.IsDevelopment() || app.Environment.IsEnvironment("Testing"))
 {
@@ -71,7 +82,6 @@ else
 }
 
 app.MapControllers();
-
 app.MapHealthChecks("/health");
 
 app.Run();
